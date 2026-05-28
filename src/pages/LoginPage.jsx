@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { GraduationCap, Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -8,13 +9,47 @@ export default function LoginPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'owner' })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const navigate = useNavigate()
 
   const handleSubmit = async () => {
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      setMessage(isForgot ? 'Reset link bhej diya gaya!' : isSignup ? 'Account ban gaya!' : 'Login successful!')
-    }, 1500)
+    setMessage('')
+
+    try {
+      const { supabase } = await import('../supabaseClient')
+
+      if (isForgot) {
+        const { error } = await supabase.auth.resetPasswordForEmail(form.email)
+        if (error) throw error
+        setMessage('Reset link bhej diya gaya! Email check karo.')
+      } else if (isSignup) {
+        const { data, error } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+        })
+        if (error) throw error
+        if (data.user) {
+          await supabase.from('profiles').insert({
+            id: data.user.id,
+            name: form.name,
+            email: form.email,
+            role: form.role,
+          })
+          navigate('/dashboard')
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        })
+        if (error) throw error
+        navigate('/dashboard')
+      }
+    } catch (error) {
+      setMessage(error.message || 'Kuch galat hua — dobara try karo')
+    }
+
+    setLoading(false)
   }
 
   if (isForgot) return (
@@ -36,7 +71,8 @@ export default function LoginPage() {
         <button onClick={handleSubmit} style={styles.btn} disabled={loading}>
           {loading ? 'Bhej rahe hain...' : 'Reset Link Bhejo'} {!loading && <ArrowRight size={16} />}
         </button>
-        <p style={styles.link} onClick={() => setIsForgot(false)}>← Wapas Login Pe</p>
+        <p style={{ ...styles.link, textAlign: 'center', marginTop: 16 }}
+          onClick={() => setIsForgot(false)}>← Wapas Login Pe</p>
       </div>
     </div>
   )
@@ -51,7 +87,7 @@ export default function LoginPage() {
         <h2 style={styles.title}>{isSignup ? 'Account Banao' : 'Wapas Aao'}</h2>
         <p style={styles.subtitle}>{isSignup ? 'GuruFlow join karo — free mein' : 'Apne account mein login karo'}</p>
 
-        {message && <div style={styles.success}>{message}</div>}
+        {message && <div style={message.includes('galat') || message.includes('nahi') ? styles.error : styles.success}>{message}</div>}
 
         {isSignup && (
           <>
@@ -100,13 +136,6 @@ export default function LoginPage() {
           {!loading && <ArrowRight size={16} />}
         </button>
 
-        <div style={styles.divider}><span>ya</span></div>
-
-        <button style={styles.googleBtn}>
-          <img src="https://www.google.com/favicon.ico" width={18} height={18} alt="G" />
-          Google se {isSignup ? 'Signup' : 'Login'} Karo
-        </button>
-
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: '#6b7280' }}>
           {isSignup ? 'Pehle se account hai? ' : 'Naya account? '}
           <span style={styles.link} onClick={() => { setIsSignup(!isSignup); setMessage('') }}>
@@ -121,7 +150,8 @@ export default function LoginPage() {
 const styles = {
   container: {
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', padding: 20
+    background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', padding: 20,
+    fontFamily: 'Georgia, serif'
   },
   card: {
     background: 'white', borderRadius: 20, padding: 40, width: '100%', maxWidth: 420,
@@ -133,18 +163,18 @@ const styles = {
   title: { fontSize: 26, fontWeight: 800, color: '#111827', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 28 },
   success: { background: '#dcfce7', color: '#166534', padding: '10px 16px', borderRadius: 8, fontSize: 14, marginBottom: 16, textAlign: 'center' },
+  error: { background: '#fee2e2', color: '#dc2626', padding: '10px 16px', borderRadius: 8, fontSize: 14, marginBottom: 16, textAlign: 'center' },
   inputGroup: { position: 'relative', marginBottom: 16 },
   inputIcon: { position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' },
   eyeIcon: { position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer' },
   input: {
     width: '100%', padding: '12px 16px 12px 40px', fontSize: 15, border: '2px solid #e5e7eb',
-    borderRadius: 10, outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
-    fontFamily: 'inherit'
+    borderRadius: 10, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit'
   },
   roleContainer: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 },
   roleBtn: {
     padding: '10px', border: '2px solid #e5e7eb', borderRadius: 10, background: 'white',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+    fontSize: 13, fontWeight: 600, cursor: 'pointer'
   },
   roleBtnActive: { borderColor: '#1e40af', background: '#eff6ff', color: '#1e40af' },
   btn: {
@@ -152,15 +182,6 @@ const styles = {
     color: 'white', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700,
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
     gap: 8, marginTop: 8, boxShadow: '0 4px 12px rgba(30,64,175,0.3)'
-  },
-  divider: {
-    textAlign: 'center', margin: '20px 0', position: 'relative',
-    borderTop: '1px solid #e5e7eb', lineHeight: 0
-  },
-  googleBtn: {
-    width: '100%', padding: '12px', background: 'white', border: '2px solid #e5e7eb',
-    borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10
   },
   link: { color: '#1e40af', cursor: 'pointer', fontWeight: 600, fontSize: 14 }
 }
