@@ -61,7 +61,17 @@ export default function LoginPage() {
         </div>
         <h2 style={styles.title}>Password Reset</h2>
         <p style={styles.subtitle}>Apna email daalo — reset link bhej denge</p>
-        {message && <div style={styles.success}>{message}</div>}
+        {message && (
+          <div style={
+            message.includes('successful') || 
+            message.includes('bhej diya') || 
+            message.includes('ban gaya')
+            ? styles.success 
+            : styles.error
+            }>
+            {message}
+            </div>
+           )}
         <div style={styles.inputGroup}>
           <Mail size={16} color="#9ca3af" style={styles.inputIcon} />
           <input placeholder="Email address" type="email"
