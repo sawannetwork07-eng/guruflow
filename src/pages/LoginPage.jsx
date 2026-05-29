@@ -63,9 +63,9 @@ export default function LoginPage() {
         <p style={styles.subtitle}>Apna email daalo — reset link bhej denge</p>
         {message && (
           <div style={
-            message.includes('successful') || 
-            message.includes('bhej diya') || 
-            message.includes('ban gaya')
+           message.toLowerCase().includes('success') ||
+           message.includes('bhej diya') ||
+           message.includes('ban gaya')
             ? styles.success 
             : styles.error
             }>
