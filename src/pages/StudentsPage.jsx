@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Users, Plus, Search, Edit2, Trash2, X, Check, Phone, BookOpen } from 'lucide-react'
+import { Users, Plus, Search, Edit2, Trash2, X, Phone, AlertCircle } from 'lucide-react'
 
 const initialStudents = [
   { id: 1, name: 'Rahul Kumar', class: 'Class 10', fees: 1500, parent: 'Suresh Kumar', phone: '9876543210', status: 'paid' },
@@ -15,26 +15,54 @@ export default function StudentsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editStudent, setEditStudent] = useState(null)
   const [form, setForm] = useState({ name: '', class: '', fees: '', parent: '', phone: '' })
+  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
 
   const filtered = students.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
     s.class.toLowerCase().includes(search.toLowerCase())
   )
 
+  const validate = (data) => {
+    const newErrors = {}
+    if (!data.name.trim()) newErrors.name = 'Student ka naam zaroori hai'
+    if (!data.class.trim()) newErrors.class = 'Class zaroori hai'
+    if (!data.fees) newErrors.fees = 'Fees amount zaroori hai'
+    else if (isNaN(data.fees) || Number(data.fees) <= 0) newErrors.fees = 'Valid fees amount daalo'
+    if (data.phone && data.phone.length !== 10) newErrors.phone = 'Phone number 10 digits ka hona chahiye'
+    return newErrors
+  }
+
+  const handleChange = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }))
+    setTouched(prev => ({ ...prev, [key]: true }))
+    const newErrors = validate({ ...form, [key]: value })
+    setErrors(newErrors)
+  }
+
   const openAdd = () => {
     setEditStudent(null)
     setForm({ name: '', class: '', fees: '', parent: '', phone: '' })
+    setErrors({})
+    setTouched({})
     setShowModal(true)
   }
 
   const openEdit = (student) => {
     setEditStudent(student)
     setForm({ name: student.name, class: student.class, fees: student.fees, parent: student.parent, phone: student.phone })
+    setErrors({})
+    setTouched({})
     setShowModal(true)
   }
 
   const handleSave = () => {
-    if (!form.name || !form.class || !form.fees) return
+    const allTouched = { name: true, class: true, fees: true, phone: true }
+    setTouched(allTouched)
+    const newErrors = validate(form)
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) return
+
     if (editStudent) {
       setStudents(students.map(s => s.id === editStudent.id ? { ...s, ...form, fees: Number(form.fees) } : s))
     } else {
@@ -44,10 +72,45 @@ export default function StudentsPage() {
   }
 
   const handleDelete = (id) => {
-    if (window.confirm('Kya aap sure hain?')) {
+    if (window.confirm('Kya aap sure hain? Yeh student delete ho jaayega.')) {
       setStudents(students.filter(s => s.id !== id))
     }
   }
+
+  const InputField = ({ label, fieldKey, placeholder, type = 'text', required = false }) => (
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
+      </label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={form[fieldKey]}
+        onChange={e => handleChange(fieldKey, e.target.value)}
+        onBlur={() => setTouched(prev => ({ ...prev, [fieldKey]: true }))}
+        style={{
+          width: '100%',
+          padding: '11px 14px',
+          border: `2px solid ${touched[fieldKey] && errors[fieldKey] ? '#ef4444' : touched[fieldKey] && !errors[fieldKey] ? '#10b981' : '#e5e7eb'}`,
+          borderRadius: 10,
+          fontSize: 14,
+          outline: 'none',
+          boxSizing: 'border-box',
+          transition: 'border-color 0.2s',
+          background: touched[fieldKey] && errors[fieldKey] ? '#fff5f5' : 'white'
+        }}
+      />
+      {touched[fieldKey] && errors[fieldKey] && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+          <AlertCircle size={12} color="#ef4444" />
+          <span style={{ fontSize: 12, color: '#ef4444' }}>{errors[fieldKey]}</span>
+        </div>
+      )}
+      {touched[fieldKey] && !errors[fieldKey] && form[fieldKey] && (
+        <div style={{ fontSize: 12, color: '#10b981', marginTop: 4 }}>✓ Sahi hai</div>
+      )}
+    </div>
+  )
 
   return (
     <div style={{ padding: 24, fontFamily: 'Georgia, serif' }}>
@@ -62,7 +125,8 @@ export default function StudentsPage() {
           background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
           color: 'white', border: 'none', borderRadius: 10,
           padding: '10px 20px', fontSize: 14, fontWeight: 700,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 12px rgba(30,64,175,0.3)'
         }}>
           <Plus size={16} /> Student Add Karo
         </button>
@@ -101,7 +165,13 @@ export default function StudentsPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((student, i) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+                  Koi student nahi mila
+                </td>
+              </tr>
+            ) : filtered.map((student, i) => (
               <tr key={student.id} style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                 <td style={{ padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -142,36 +212,36 @@ export default function StudentsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 20, padding: 32, width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 32, width: '100%', maxWidth: 460, boxShadow: '0 25px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: 0 }}>
-                {editStudent ? 'Student Edit Karo' : 'Naya Student Add Karo'}
+                {editStudent ? '✏️ Student Edit Karo' : '➕ Naya Student Add Karo'}
               </h3>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={20} color="#6b7280" />
+              <button onClick={() => setShowModal(false)} style={{ background: '#f3f4f6', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer' }}>
+                <X size={18} color="#6b7280" />
               </button>
             </div>
-            {[
-              { label: 'Student Ka Naam *', key: 'name', placeholder: 'Jaise: Rahul Kumar' },
-              { label: 'Class *', key: 'class', placeholder: 'Jaise: Class 10' },
-              { label: 'Monthly Fees (₹) *', key: 'fees', placeholder: 'Jaise: 1500', type: 'number' },
-              { label: 'Parent Ka Naam', key: 'parent', placeholder: 'Jaise: Suresh Kumar' },
-              { label: 'Parent Phone', key: 'phone', placeholder: '10 digit number', type: 'tel' },
-            ].map(field => (
-              <div key={field.key} style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>{field.label}</label>
-                <input type={field.type || 'text'} placeholder={field.placeholder}
-                  value={form[field.key]} onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                  style={{ width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+
+            <InputField label="Student Ka Naam" fieldKey="name" placeholder="Jaise: Rahul Kumar" required />
+            <InputField label="Class" fieldKey="class" placeholder="Jaise: Class 10" required />
+            <InputField label="Monthly Fees (₹)" fieldKey="fees" placeholder="Jaise: 1500" type="number" required />
+            <InputField label="Parent Ka Naam" fieldKey="parent" placeholder="Jaise: Suresh Kumar" />
+            <InputField label="Parent Phone" fieldKey="phone" placeholder="10 digit number" type="tel" />
+
+            {Object.keys(errors).length > 0 && Object.keys(touched).length > 0 && (
+              <div style={{ background: '#fff5f5', border: '1px solid #fecaca', borderRadius: 10, padding: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertCircle size={16} color="#ef4444" />
+                <span style={{ fontSize: 13, color: '#ef4444' }}>Sabse pehle zaroori fields fill karo</span>
               </div>
-            ))}
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button onClick={() => setShowModal(false)} style={{ flex: 1, padding: '11px', border: '2px solid #e5e7eb', borderRadius: 10, background: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <button onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', border: '2px solid #e5e7eb', borderRadius: 10, background: 'white', fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
                 Cancel
               </button>
-              <button onClick={handleSave} style={{ flex: 1, padding: '11px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg, #1e40af, #3b82f6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                {editStudent ? 'Update Karo' : 'Add Karo'}
+              <button onClick={handleSave} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: 10, background: 'linear-gradient(135deg, #1e40af, #3b82f6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                {editStudent ? '✓ Update Karo' : '+ Add Karo'}
               </button>
             </div>
           </div>
